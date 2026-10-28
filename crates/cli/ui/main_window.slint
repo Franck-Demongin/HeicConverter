@@ -38,6 +38,12 @@ export component MainWindow inherits Window {
 
     in-out property <bool> report-visible: false;
 
+    in-out property <string> processing-mode: "Fichier unique";
+    in-out property <string> batch-source-path: "";
+    in-out property <string> batch-output-path: "";
+    in-out property <string> batch-naming: "Conserver le nom d'origine";
+    in-out property <string> batch-base-name: "image";
+
     callback browse-source();
     callback browse-output();
     callback convert();
@@ -47,6 +53,9 @@ export component MainWindow inherits Window {
     callback open-report();
     callback close-report();
     callback format-changed();
+
+    callback browse-batch-source();
+    callback browse-batch-output();
 
     open-report => {
         report_popup.show();
@@ -107,6 +116,31 @@ export component MainWindow inherits Window {
                 spacing: Theme.spacing;
                 vertical-stretch: 0;
 
+                Text { text: "Mode de traitement"; vertical-alignment: center; }
+                ComboBox {
+                    model: ["Fichier unique", "Dossier"];
+                    current-value <=> root.processing-mode;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+
+        if root.processing-mode == "Fichier unique" : Rectangle {
+            background: Palette.alternate-background;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: Theme.corner-radius;
+            vertical-stretch: 0;
+            horizontal-stretch: 1;
+            height: self.preferred-height;
+
+            VerticalBox {
+                padding: Theme.spacing;
+                spacing: Theme.spacing;
+                vertical-stretch: 0;
+
+                Text { text: "Convertisseur"; font-size: 14px; font-weight: 700; }
+
                 Text { text: "Source"; vertical-alignment: center; }
                 HorizontalBox {
                     spacing: Theme.spacing;
@@ -130,22 +164,6 @@ export component MainWindow inherits Window {
                     color: Palette.foreground;
                     font-size: Theme.font-small;
                 }
-            }
-        }
-
-        Rectangle {
-            background: Palette.alternate-background;
-            border-color: Palette.border;
-            border-width: 1px;
-            border-radius: Theme.corner-radius;
-            vertical-stretch: 0;
-            horizontal-stretch: 1;
-            height: self.preferred-height;
-
-            VerticalBox {
-                padding: Theme.spacing;
-                spacing: Theme.spacing;
-                vertical-stretch: 0;
 
                 Text { text: "Sortie"; vertical-alignment: center; }
                 HorizontalBox {
@@ -163,6 +181,100 @@ export component MainWindow inherits Window {
                         clicked => { root.browse-output(); }
                     }
                 }
+            }
+        }
+
+        if root.processing-mode == "Dossier" : Rectangle {
+            background: Palette.alternate-background;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: Theme.corner-radius;
+            vertical-stretch: 0;
+            horizontal-stretch: 1;
+            height: self.preferred-height;
+
+            VerticalBox {
+                padding: Theme.spacing;
+                spacing: Theme.spacing;
+                vertical-stretch: 0;
+
+                Text { text: "Traitement par lot"; font-size: 14px; font-weight: 700; }
+
+                Text { text: "Dossier source"; vertical-alignment: center; }
+                HorizontalBox {
+                    spacing: Theme.spacing;
+                    alignment: stretch;
+                    vertical-stretch: 0;
+                    padding: 0px;
+                    LineEdit { text <=> root.batch-source-path; placeholder-text: "Dossier contenant des HEIC/HEIF"; horizontal-stretch: 1; }
+                    Button {
+                        text: "Parcourir...";
+                        icon: @image-url("../../../assets/icons/ui/folder-open.svg");
+                        icon-size: 16px;
+                        colorize-icon: true;
+                        horizontal-stretch: 0;
+                        clicked => { root.browse-batch-source(); }
+                    }
+                }
+
+                Text { text: "Dossier de sortie"; vertical-alignment: center; }
+                HorizontalBox {
+                    spacing: Theme.spacing;
+                    alignment: stretch;
+                    vertical-stretch: 0;
+                    padding: 0px;
+                    LineEdit { text <=> root.batch-output-path; placeholder-text: "Dossier des fichiers generes"; horizontal-stretch: 1; }
+                    Button {
+                        text: "Parcourir...";
+                        icon: @image-url("../../../assets/icons/ui/folder-open.svg");
+                        icon-size: 16px;
+                        colorize-icon: true;
+                        horizontal-stretch: 0;
+                        clicked => { root.browse-batch-output(); }
+                    }
+                }
+
+                HorizontalBox {
+                    spacing: Theme.spacing;
+                    vertical-stretch: 0;
+                    padding: 0px;
+
+                    VerticalBox {
+                        spacing: Theme.spacing;
+                        padding: 0px;
+                        Text { text: "Nommage des sorties"; vertical-alignment: center; }
+                        ComboBox {
+                            model: ["Conserver le nom d'origine", "Nom generique + indice"];
+                            current-value <=> root.batch-naming;
+                            horizontal-stretch: 1;
+                        }
+                    }
+
+                    if root.batch-naming == "Nom generique + indice" : VerticalBox {
+                        spacing: Theme.spacing;
+                        padding: 0px;
+                        Text { text: "Nom de base"; vertical-alignment: center; }
+                        LineEdit { text <=> root.batch-base-name; placeholder-text: "image"; horizontal-stretch: 1; }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            background: Palette.alternate-background;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: Theme.corner-radius;
+            vertical-stretch: 0;
+            horizontal-stretch: 1;
+            height: self.preferred-height;
+
+            VerticalBox {
+                padding: Theme.spacing;
+                spacing: Theme.spacing;
+                vertical-stretch: 0;
+
+                Text { text: "Format de sortie"; font-size: 14px; font-weight: 700; }
 
                 HorizontalBox {
                     spacing: Theme.spacing;
@@ -218,7 +330,7 @@ export component MainWindow inherits Window {
                 }
             }
 
-            if root.output-available : Button {
+            if root.output-available && root.processing-mode == "Fichier unique" : Button {
                 text: "Ouvrir le fichier";
                 icon: @image-url("../../../assets/icons/ui/document-open.svg");
                 icon-size: 16px;

@@ -78,6 +78,28 @@ pub fn run() -> Result<()> {
         }
     });
 
+    let batch_source_weak = weak.clone();
+    ui.on_browse_batch_source(move || {
+        if let Some(ui) = batch_source_weak.upgrade()
+            && let Some(path) = rfd::FileDialog::new()
+                .set_title("Selectionner le dossier source du lot")
+                .pick_folder()
+        {
+            ui.set_batch_source_path(path.display().to_string().into());
+        }
+    });
+
+    let batch_output_weak = weak.clone();
+    ui.on_browse_batch_output(move || {
+        if let Some(ui) = batch_output_weak.upgrade()
+            && let Some(path) = rfd::FileDialog::new()
+                .set_title("Selectionner le dossier de sortie du lot")
+                .pick_folder()
+        {
+            ui.set_batch_output_path(path.display().to_string().into());
+        }
+    });
+
     let file_weak = weak.clone();
     let file_toaster = toaster.clone();
     ui.on_open_output_file(move || {
@@ -92,6 +114,12 @@ pub fn run() -> Result<()> {
 }
 
 fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
+    let mode = ui.get_processing_mode().as_str().trim().to_owned();
+    if mode.eq_ignore_ascii_case("Dossier") {
+        convert_batch_gui(ui, toaster);
+        return;
+    }
+
     ui.set_output_available(false);
     ui.set_report_available(false);
 
@@ -175,6 +203,187 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
             set_status(ui, toaster, format!("Conversion impossible : {error}"), 2);
         }
     }
+}
+
+fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
+    ui.set_output_available(false);
+    ui.set_report_available(false);
+
+    let source = ui.get_batch_source_path().as_str().trim().to_owned();
+    let output = ui.get_batch_output_path().as_str().trim().to_owned();
+    if source.is_empty() || output.is_empty() {
+        set_status(
+            ui,
+            toaster,
+            "Choisir d'abord les dossiers source et sortie.".to_owned(),
+            2,
+        );
+        return;
+    }
+    let source_dir = PathBuf::from(source);
+    let output_dir = PathBuf::from(output);
+    if !source_dir.is_dir() {
+        set_status(ui, toaster, "Dossier source introuvable.".to_owned(), 2);
+        return;
+    }
+    if let Err(error) = std::fs::create_dir_all(&output_dir) {
+        set_status(
+            ui,
+            toaster,
+            format!("Creation du dossier de sortie impossible : {error}"),
+            2,
+        );
+        return;
+    }
+    if output_dir.is_file() {
+        set_status(
+            ui,
+            toaster,
+            "Le chemin de sortie doit etre un dossier.".to_owned(),
+            2,
+        );
+        return;
+    }
+
+    let format_str = ui.get_output_format().as_str().trim().to_lowercase();
+    let quality: u8 = ui
+        .get_quality()
+        .as_str()
+        .trim()
+        .parse()
+        .unwrap_or(90)
+        .clamp(1, 100);
+    let format = match format_str.as_str() {
+        "png" => OutputFormat::Png,
+        _ => OutputFormat::Jpeg { quality },
+    };
+    if let OutputFormat::Jpeg { quality } = format
+        && !(1..=100).contains(&quality)
+    {
+        set_status(ui, toaster, "Qualite JPEG invalide.".to_owned(), 2);
+        return;
+    }
+
+    let extension = match format {
+        OutputFormat::Jpeg { .. } => "jpg",
+        OutputFormat::Png => "png",
+    };
+
+    let mut files = Vec::new();
+    match std::fs::read_dir(&source_dir) {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && is_heic_file(&path) {
+                    files.push(path);
+                }
+            }
+        }
+        Err(error) => {
+            set_status(ui, toaster, format!("Lecture impossible : {error}"), 2);
+            return;
+        }
+    }
+    files.sort();
+    if files.is_empty() {
+        set_status(
+            ui,
+            toaster,
+            "Aucun fichier HEIC/HEIF trouve dans le dossier source.".to_owned(),
+            2,
+        );
+        return;
+    }
+
+    let naming = ui.get_batch_naming().as_str().trim().to_owned();
+    let generic = naming.to_lowercase().contains("generique");
+    let base_name = {
+        let raw = ui.get_batch_base_name().as_str().trim().to_owned();
+        let candidate = if raw.is_empty() {
+            "image".to_owned()
+        } else {
+            raw
+        };
+        std::path::Path::new(&candidate)
+            .file_name()
+            .and_then(|value| value.to_str())
+            .filter(|value| !value.is_empty())
+            .unwrap_or("image")
+            .to_owned()
+    };
+
+    let options = ConversionOptions {
+        format,
+        apply_transforms: true,
+        max_pixels: 1 << 28,
+    };
+
+    let mut successes = 0usize;
+    let mut errors = 0usize;
+    let mut lines = vec![
+        "HEIC Converter - traitement par lot".to_owned(),
+        format!("Dossier source : {}", source_dir.display()),
+        format!("Dossier de sortie : {}", output_dir.display()),
+        format!("Fichiers trouves : {}", files.len()),
+        String::new(),
+    ];
+
+    for (index, input) in files.iter().enumerate() {
+        let output_name = if generic {
+            format!("{}_{:03}.{}", base_name, index + 1, extension)
+        } else {
+            let stem = input
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .filter(|value| !value.is_empty())
+                .unwrap_or("sortie");
+            format!("{}.{}", stem, extension)
+        };
+        let output_path = output_dir.join(output_name);
+
+        match convert_file(input, &output_path, &options) {
+            Ok(result) => {
+                successes += 1;
+                lines.push(format!(
+                    "OK {} -> {} ({}x{})",
+                    input.display(),
+                    output_path.display(),
+                    result.width,
+                    result.height
+                ));
+            }
+            Err(error) => {
+                errors += 1;
+                lines.push(format!("ERR {} : {error}", input.display()));
+            }
+        }
+    }
+
+    lines.push(String::new());
+    lines.push(format!("Reussies : {successes}"));
+    lines.push(format!("Echecs : {errors}"));
+
+    ui.set_output_path(output_dir.display().to_string().into());
+    if successes > 0 {
+        ui.set_output_available(true);
+    }
+    ui.set_report_title("Resultat du lot".into());
+    ui.set_report(lines.join("\n").into());
+    ui.set_report_available(true);
+
+    let level = if errors > 0 { 2 } else { 0 };
+    let status = format!("Lot termine : {successes} reussie(s), {errors} echec(s).");
+    set_status(ui, toaster, status, level);
+}
+
+fn is_heic_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| {
+            let ext = ext.to_lowercase();
+            ext == "heic" || ext == "heif"
+        })
+        .unwrap_or(false)
 }
 
 fn set_report(
