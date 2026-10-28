@@ -56,7 +56,8 @@ pub fn run() -> Result<()> {
                 .add_filter("Image", &["jpg", "jpeg", "png"])
                 .set_title("Enregistrer l'image generee");
             if let Some(path) = dialog.save_file() {
-                ui.set_output_path(path.display().to_string().into());
+                let output = normalized_output_path(path, ui.get_output_format().as_str());
+                ui.set_output_path(output.display().to_string().into());
             }
         }
     });
@@ -120,6 +121,8 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
             PathBuf::from(current)
         }
     };
+    let output = normalized_output_path(output, &format_str);
+    ui.set_output_path(output.display().to_string().into());
 
     if same_path(&input_path, &output) {
         set_status(
@@ -209,6 +212,15 @@ fn default_output_path(input: &Path, format: &str) -> PathBuf {
     PathBuf::from(parent).join(format!("{stem}.{ext}"))
 }
 
+fn normalized_output_path(path: PathBuf, format: &str) -> PathBuf {
+    let extension = if format.eq_ignore_ascii_case("png") {
+        "png"
+    } else {
+        "jpg"
+    };
+    path.with_extension(extension)
+}
+
 fn update_output_extension(ui: &MainWindow) {
     let format = ui.get_output_format().as_str().trim().to_owned();
     let output = ui.get_output_path().as_str().trim().to_owned();
@@ -216,14 +228,9 @@ fn update_output_extension(ui: &MainWindow) {
         return;
     }
 
-    let extension = if format.eq_ignore_ascii_case("png") {
-        "png"
-    } else {
-        "jpg"
-    };
-    let path = PathBuf::from(output);
-    let updated = path.with_extension(extension);
-    if updated != path {
+    let original = PathBuf::from(output.clone());
+    let updated = normalized_output_path(PathBuf::from(output), &format);
+    if updated != original {
         ui.set_output_path(updated.display().to_string().into());
     }
 }
