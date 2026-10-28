@@ -1,4 +1,4 @@
-import { VerticalBox, HorizontalBox, Button, LineEdit, ScrollView, StandardButton, Palette } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, Button, ComboBox, LineEdit, ScrollView, StandardButton, Palette } from "std-widgets.slint";
 import { Toast, ToastItem, ToastTiming, ToastState, ToastOverlay } from "toast/toast.slint";
 export { ToastTiming, ToastState } from "toast/toast.slint";
 
@@ -27,7 +27,7 @@ export component MainWindow inherits Window {
 
     in-out property <string> source-path: "";
     in-out property <string> output-path: "";
-    in-out property <string> output-format: "jpeg";
+    in-out property <string> output-format: "JPEG";
     in-out property <string> quality: "90";
     in property <string> report-title: "Resultat";
     in property <string> report: "";
@@ -45,6 +45,7 @@ export component MainWindow inherits Window {
 
     callback open-report();
     callback close-report();
+    callback format-changed();
 
     open-report => {
         report_popup.show();
@@ -166,10 +167,26 @@ export component MainWindow inherits Window {
                     spacing: Theme.spacing;
                     vertical-stretch: 0;
                     padding: 0px;
-                    Text { text: "Format"; vertical-alignment: center; }
-                    LineEdit { text <=> root.output-format; placeholder-text: "jpeg"; horizontal-stretch: 1; }
-                    Text { text: "Qualite (JPEG)"; vertical-alignment: center; }
-                    LineEdit { text <=> root.quality; placeholder-text: "90"; horizontal-stretch: 0; min-width: Theme.crop-field-min-width; }
+                    VerticalBox {
+                        spacing: Theme.spacing;
+                        padding: 0px;
+                        Text { text: "Format"; vertical-alignment: center; }
+                        ComboBox {
+                            model: ["JPEG", "PNG"];
+                            current-value <=> root.output-format;
+                            horizontal-stretch: 1;
+                            selected(value) => {
+                                root.output-format = value;
+                                root.format-changed();
+                            }
+                        }
+                    }
+                    VerticalBox {
+                        spacing: Theme.spacing;
+                        padding: 0px;
+                        Text { text: "Qualite (JPEG)"; vertical-alignment: center; }
+                        LineEdit { text <=> root.quality; placeholder-text: "90"; horizontal-stretch: 0; min-width: Theme.crop-field-min-width; }
+                    }
                 }
             }
         }

@@ -23,6 +23,13 @@ pub fn run() -> Result<()> {
 
     let toaster = Toaster::install(&ui);
 
+    let format_weak = weak.clone();
+    ui.on_format_changed(move || {
+        if let Some(ui) = format_weak.upgrade() {
+            update_output_extension(&ui);
+        }
+    });
+
     let browse_source_weak = weak.clone();
     let browse_toaster = toaster.clone();
     ui.on_browse_source(move || {
@@ -200,6 +207,25 @@ fn default_output_path(input: &Path, format: &str) -> PathBuf {
         "jpg"
     };
     PathBuf::from(parent).join(format!("{stem}.{ext}"))
+}
+
+fn update_output_extension(ui: &MainWindow) {
+    let format = ui.get_output_format().as_str().trim().to_owned();
+    let output = ui.get_output_path().as_str().trim().to_owned();
+    if output.is_empty() {
+        return;
+    }
+
+    let extension = if format.eq_ignore_ascii_case("png") {
+        "png"
+    } else {
+        "jpg"
+    };
+    let path = PathBuf::from(output);
+    let updated = path.with_extension(extension);
+    if updated != path {
+        ui.set_output_path(updated.display().to_string().into());
+    }
 }
 
 fn same_path(left: &Path, right: &Path) -> bool {
