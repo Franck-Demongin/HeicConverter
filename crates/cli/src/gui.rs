@@ -52,9 +52,37 @@ pub fn run() -> Result<()> {
     let browse_output_weak = weak.clone();
     ui.on_browse_output(move || {
         if let Some(ui) = browse_output_weak.upgrade() {
-            let dialog = rfd::FileDialog::new()
+            let current_output = ui.get_output_path().as_str().trim().to_owned();
+            let fallback_output = if current_output.is_empty() {
+                let source = ui.get_source_path().as_str().trim().to_owned();
+                if source.is_empty() {
+                    None
+                } else {
+                    Some(default_output_path(
+                        Path::new(&source),
+                        ui.get_output_format().as_str(),
+                    ))
+                }
+            } else {
+                Some(PathBuf::from(current_output))
+            };
+
+            let mut dialog = rfd::FileDialog::new()
                 .add_filter("Image", &["jpg", "jpeg", "png"])
                 .set_title("Enregistrer l'image generee");
+            if let Some(path) = fallback_output.as_ref() {
+                if let Some(parent) = path.parent()
+                    && parent.exists()
+                {
+                    dialog = dialog.set_directory(parent);
+                }
+                if let Some(name) = path.file_name().and_then(|value| value.to_str())
+                    && !name.is_empty()
+                {
+                    dialog = dialog.set_file_name(name);
+                }
+            }
+
             if let Some(path) = dialog.save_file() {
                 let output = normalized_output_path(path, ui.get_output_format().as_str());
                 ui.set_output_path(output.display().to_string().into());
