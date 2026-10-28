@@ -78,6 +78,14 @@ pub fn run() -> Result<()> {
         }
     });
 
+    let file_weak = weak.clone();
+    let file_toaster = toaster.clone();
+    ui.on_open_output_file(move || {
+        if let Some(ui) = file_weak.upgrade() {
+            open_output_file_gui(&ui, &file_toaster);
+        }
+    });
+
     ui.run()
         .map_err(|error| anyhow::anyhow!("execution de l'interface impossible : {error}"))?;
     Ok(())
@@ -256,6 +264,17 @@ fn open_output_folder_gui(ui: &MainWindow, toaster: &Toaster) {
         .map(Path::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("."));
     if let Err(error) = open_system_path(&target) {
+        set_status(ui, toaster, format!("Ouverture impossible : {error}"), 2);
+    }
+}
+
+fn open_output_file_gui(ui: &MainWindow, toaster: &Toaster) {
+    let path = ui.get_output_path().as_str().to_owned();
+    if path.is_empty() {
+        return;
+    }
+    let path = PathBuf::from(path);
+    if let Err(error) = open_system_path(&path) {
         set_status(ui, toaster, format!("Ouverture impossible : {error}"), 2);
     }
 }

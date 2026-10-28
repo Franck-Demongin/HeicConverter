@@ -42,6 +42,7 @@ export component MainWindow inherits Window {
     callback browse-output();
     callback convert();
     callback open-output-folder();
+    callback open-output-file();
 
     callback open-report();
     callback close-report();
@@ -215,6 +216,15 @@ export component MainWindow inherits Window {
                 clicked => {
                     root.open-report();
                 }
+            }
+
+            if root.output-available : Button {
+                text: "Ouvrir le fichier";
+                icon: @image-url("../../../assets/icons/ui/document-open.svg");
+                icon-size: 16px;
+                colorize-icon: true;
+                horizontal-stretch: 0;
+                clicked => { root.open-output-file(); }
             }
 
             if root.output-available : Button {
