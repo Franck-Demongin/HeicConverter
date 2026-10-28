@@ -1,0 +1,337 @@
+import { VerticalBox, HorizontalBox, Button, LineEdit, ScrollView, StandardButton, Palette } from "std-widgets.slint";
+import { Toast, ToastItem, ToastTiming, ToastState, ToastOverlay } from "toast/toast.slint";
+export { ToastTiming, ToastState } from "toast/toast.slint";
+
+global Theme {
+    out property <length> spacing: 8px;
+    out property <length> window-preferred-width: 860px;
+    out property <length> window-preferred-height: 520px;
+    out property <length> window-min-width: 760px;
+    out property <length> window-min-height: 460px;
+    out property <length> dialog-width: 760px;
+    out property <length> dialog-height: 500px;
+    out property <length> dialog-vertical-margin: 45px;
+    out property <length> label-min-width: 0px;
+    out property <length> crop-field-min-width: 120px;
+    out property <length> frame-min-height: 240px;
+    out property <length> corner-radius: 6px;
+    out property <length> font-small: 12px;
+}
+
+export component MainWindow inherits Window {
+    title: root.window-title;
+    preferred-width: Theme.window-preferred-width;
+    preferred-height: Theme.window-preferred-height;
+    min-width: Theme.window-min-width;
+    min-height: Theme.window-min-height;
+
+    in-out property <string> source-path: "";
+    in-out property <string> output-path: "";
+    in-out property <string> output-format: "jpeg";
+    in-out property <string> quality: "90";
+    in property <string> report-title: "Resultat";
+    in property <string> report: "";
+    in property <string> source-size: "";
+    in property <bool> output-available: false;
+    in property <bool> report-available: false;
+    in property <string> window-title: "HEIC Converter";
+
+    in-out property <bool> report-visible: false;
+
+    callback browse-source();
+    callback browse-output();
+    callback convert();
+    callback open-output-folder();
+
+    callback open-report();
+    callback close-report();
+
+    open-report => {
+        report_popup.show();
+        root.report-visible = true;
+    }
+
+    close-report => {
+        report_popup.close();
+        root.report-visible = false;
+    }
+
+    VerticalBox {
+        spacing: Theme.spacing;
+        padding: Theme.spacing;
+        alignment: stretch;
+
+        HorizontalBox {
+            vertical-stretch: 0;
+            alignment: stretch;
+            spacing: Theme.spacing;
+
+            Image {
+                source: @image-url("../../../assets/icons/heic-converter-64.png");
+                width: 48px;
+                height: 48px;
+                image-fit: contain;
+            }
+
+            VerticalBox {
+                padding: 0px;
+                spacing: 0px;
+
+                Text {
+                    text: "HEIC Converter";
+                    font-size: 16px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "Conversion HEIC/HEIF vers JPEG ou PNG";
+                    font-size: 12px;
+                    color: Palette.foreground;
+                    horizontal-alignment: left;
+                }
+            }
+        }
+
+        Rectangle {
+            background: Palette.alternate-background;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: Theme.corner-radius;
+            vertical-stretch: 0;
+            horizontal-stretch: 1;
+            height: self.preferred-height;
+
+            VerticalBox {
+                padding: Theme.spacing;
+                spacing: Theme.spacing;
+                vertical-stretch: 0;
+
+                Text { text: "Source"; vertical-alignment: center; }
+                HorizontalBox {
+                    spacing: Theme.spacing;
+                    alignment: stretch;
+                    vertical-stretch: 0;
+                    padding: 0px;
+                    LineEdit { text <=> root.source-path; placeholder-text: "Chemin du fichier HEIC/HEIF"; horizontal-stretch: 1; }
+                    Button {
+                        text: "Parcourir...";
+                        icon: @image-url("../../../assets/icons/ui/document-open.svg");
+                        icon-size: 16px;
+                        colorize-icon: true;
+                        horizontal-stretch: 0;
+                        clicked => { root.browse-source(); }
+                    }
+                }
+
+                if root.source-size != "" : Text {
+                    text: root.source-size;
+                    wrap: word-wrap;
+                    color: Palette.foreground;
+                    font-size: Theme.font-small;
+                }
+            }
+        }
+
+        Rectangle {
+            background: Palette.alternate-background;
+            border-color: Palette.border;
+            border-width: 1px;
+            border-radius: Theme.corner-radius;
+            vertical-stretch: 0;
+            horizontal-stretch: 1;
+            height: self.preferred-height;
+
+            VerticalBox {
+                padding: Theme.spacing;
+                spacing: Theme.spacing;
+                vertical-stretch: 0;
+
+                Text { text: "Sortie"; vertical-alignment: center; }
+                HorizontalBox {
+                    spacing: Theme.spacing;
+                    alignment: stretch;
+                    vertical-stretch: 0;
+                    padding: 0px;
+                    LineEdit { text <=> root.output-path; placeholder-text: "Chemin du fichier genere"; horizontal-stretch: 1; }
+                    Button {
+                        text: "Parcourir...";
+                        icon: @image-url("../../../assets/icons/ui/folder-open.svg");
+                        icon-size: 16px;
+                        colorize-icon: true;
+                        horizontal-stretch: 0;
+                        clicked => { root.browse-output(); }
+                    }
+                }
+
+                HorizontalBox {
+                    spacing: Theme.spacing;
+                    vertical-stretch: 0;
+                    padding: 0px;
+                    Text { text: "Format"; vertical-alignment: center; }
+                    LineEdit { text <=> root.output-format; placeholder-text: "jpeg"; horizontal-stretch: 1; }
+                    Text { text: "Qualite (JPEG)"; vertical-alignment: center; }
+                    LineEdit { text <=> root.quality; placeholder-text: "90"; horizontal-stretch: 0; min-width: Theme.crop-field-min-width; }
+                }
+            }
+        }
+
+        Rectangle {
+            min-height: 0px;
+            vertical-stretch: 1;
+        }
+
+        Rectangle {
+            height: 1px;
+            horizontal-stretch: 1;
+            background: Palette.border;
+        }
+
+        HorizontalBox {
+            spacing: Theme.spacing;
+            vertical-stretch: 0;
+
+            if root.report-available : Button {
+                text: "Rapport";
+                icon: @image-url("../../../assets/icons/ui/document-properties.svg");
+                icon-size: 16px;
+                colorize-icon: true;
+                horizontal-stretch: 0;
+                clicked => {
+                    root.open-report();
+                }
+            }
+
+            if root.output-available : Button {
+                text: "Ouvrir le dossier";
+                icon: @image-url("../../../assets/icons/ui/folder-open.svg");
+                icon-size: 16px;
+                colorize-icon: true;
+                horizontal-stretch: 0;
+                clicked => { root.open-output-folder(); }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+
+            Button {
+                text: "Convertir";
+                primary: true;
+                horizontal-stretch: 0;
+                clicked => { root.convert(); }
+            }
+        }
+    }
+
+    ToastOverlay {
+        available-width: root.width;
+        spacing: Theme.spacing;
+    }
+
+    report_popup := PopupWindow {
+        close-policy: no-auto-close;
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+
+        report_focus := FocusScope {
+            in property <bool> report-open: root.report-visible;
+
+            changed report-open => {
+                if self.report-open {
+                    self.focus();
+                }
+            }
+
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+
+            capture-key-pressed(event) => {
+                if root.report-visible && event.text == Key.Escape {
+                    root.close-report();
+                    return accept;
+                }
+                reject
+            }
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                background: #00000080;
+
+                backdrop := TouchArea {
+                    clicked => { }
+                }
+            }
+
+            report_dialog := Dialog {
+                x: (root.width - self.width) / 2;
+                y: (root.height - self.height) / 2;
+                width: root.width >= Theme.dialog-width ? Theme.dialog-width : root.width;
+                height: root.height >= Theme.window-preferred-height ? Theme.dialog-height : root.height - Theme.dialog-vertical-margin;
+                title: root.report-title;
+
+                VerticalBox {
+                    padding: Theme.spacing;
+                    spacing: Theme.spacing;
+                    alignment: stretch;
+
+                    Rectangle {
+                        background: Palette.alternate-background;
+                        border-color: Palette.border;
+                        border-width: 1px;
+                        border-radius: Theme.corner-radius;
+                        horizontal-stretch: 1;
+                        vertical-stretch: 1;
+                        min-height: Theme.frame-min-height;
+                        clip: true;
+
+                        TouchArea {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.width;
+                            height: parent.height;
+                            clicked => { }
+                        }
+
+                        ScrollView {
+                            horizontal-stretch: 1;
+                            vertical-stretch: 1;
+                            content-width: self.visible-width;
+                            horizontal-scrollbar-policy: always-off;
+
+                            VerticalBox {
+                                padding: Theme.spacing;
+                                spacing: 0px;
+                                alignment: stretch;
+
+                                Text {
+                                    text: root.report;
+                                    width: 100%;
+                                    min-width: 0px;
+                                    wrap: word-wrap;
+                                    vertical-alignment: top;
+                                    horizontal-alignment: left;
+                                    font-family: "monospace";
+                                    font-size: Theme.font-small;
+                                    color: Palette.foreground;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                StandardButton {
+                    kind: close;
+                    clicked => {
+                        root.close-report();
+                    }
+                }
+            }
+        }
+    }
+}

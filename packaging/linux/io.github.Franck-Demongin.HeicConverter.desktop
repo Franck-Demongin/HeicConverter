@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=HEIC Converter
+Comment=Lire et préparer des documents PDF pour PDF/X-4
+Exec=heic-converter-gui
+TryExec=heic-converter-gui
+Icon=io.github.Franck-Demongin.HeicConverter
+Terminal=false
+Categories=Office;
+StartupNotify=false
+StartupWMClass=io.github.Franck-Demongin.HeicConverter

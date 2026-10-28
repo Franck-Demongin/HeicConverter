@@ -1,0 +1,21 @@
+fn main() {
+    #[cfg(all(feature = "gui", target_os = "windows"))]
+    {
+        let mut res = winresource::WindowsResource::new();
+        let icon = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/icons/heic-converter.ico");
+        res.set_icon(icon.to_string_lossy().as_ref());
+        res.set("FileDescription", "Préparation et validation PDF/X-4");
+        res.set("ProductName", "HEIC Converter");
+        res.set("OriginalFilename", "heic-converter-gui.exe");
+        res.compile()
+            .expect("échec de la compilation des ressources Windows");
+    }
+
+    #[cfg(feature = "gui")]
+    {
+        if let Err(error) = slint_build::compile("ui/main_window.slint") {
+            panic!("compilation Slint impossible : {error}");
+        }
+    }
+}

@@ -1,0 +1,16 @@
+/target
+/Cargo.lock.bak
+*.rs.bk
+*.pdb
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+
+# Qwen Code state (choix utilisateur : non versionné)
+.qwen/
+
+# Local-only test data and generated output
+/data/
+/output/
