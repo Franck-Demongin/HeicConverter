@@ -47,6 +47,7 @@ export component MainWindow inherits Window {
     in-out property <float> batch-progress: 0.0;
     in-out property <string> progress-label: "";
     in-out property <bool> converting: false;
+    in-out property <bool> overwrite-existing: true;
 
     callback browse-source();
     callback browse-output();
@@ -278,7 +279,7 @@ export component MainWindow inherits Window {
                         spacing: Theme.spacing;
                         vertical-stretch: 0;
 
-                        Text { text: "Format de sortie"; font-size: 14px; font-weight: 700; }
+                        Text { text: "Options"; font-size: 14px; font-weight: 700; }
 
                         HorizontalBox {
                             spacing: Theme.spacing;
@@ -303,6 +304,17 @@ export component MainWindow inherits Window {
                                 padding: 0px;
                                 Text { text: "Qualite (JPEG)"; vertical-alignment: center; }
                                 LineEdit { text <=> root.quality; placeholder-text: "90"; horizontal-stretch: 0; min-width: Theme.crop-field-min-width; }
+                            }
+                        }
+
+                        HorizontalBox {
+                            spacing: Theme.spacing;
+                            vertical-stretch: 0;
+                            padding: 0px;
+
+                            Text { text: "Écraser si déjà présent"; vertical-alignment: center; }
+                            Switch {
+                                checked <=> root.overwrite-existing;
                             }
                         }
                     }

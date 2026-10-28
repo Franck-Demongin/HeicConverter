@@ -176,6 +176,24 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
         return;
     }
 
+    let overwrite_existing = ui.get_overwrite_existing();
+    if !overwrite_existing && output.exists() {
+        ui.set_output_path(output.display().to_string().into());
+        ui.set_output_available(true);
+        ui.set_report_title("Resultat".into());
+        ui.set_report(
+            format!(
+                "HEIC Converter - resultat\nFichier source : {}\nFichier conserve : {}\nAucune conversion effectuee (deja present).",
+                input_path.display(),
+                output.display()
+            )
+            .into(),
+        );
+        ui.set_report_available(true);
+        set_status(ui, toaster, "Fichier deja present, conserve.".to_owned(), 0);
+        return;
+    }
+
     let progress_name = input_path
         .file_name()
         .and_then(|value| value.to_str())
@@ -301,6 +319,8 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
         OutputFormat::Png => "png",
     };
 
+    let overwrite_existing = ui.get_overwrite_existing();
+
     let mut files = Vec::new();
     match std::fs::read_dir(&source_dir) {
         Ok(entries) => {
@@ -361,6 +381,7 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
     std::thread::spawn(move || {
         let mut successes = 0usize;
         let mut errors = 0usize;
+        let mut skipped = 0usize;
         let mut lines = vec![
             "HEIC Converter - traitement par lot".to_owned(),
             format!("Dossier source : {}", source_dir.display()),
@@ -395,6 +416,24 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
             };
             let output_path = output_dir.join(output_name);
 
+            if !overwrite_existing && output_path.exists() {
+                skipped += 1;
+                lines.push(format!(
+                    "SKIP {} -> {} (deja present)",
+                    input.display(),
+                    output_path.display()
+                ));
+
+                let progress = (index + 1) as f32 / total_files as f32;
+                let progress_weak = ui_weak.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = progress_weak.upgrade() {
+                        ui.set_batch_progress(progress);
+                    }
+                });
+                continue;
+            }
+
             match convert_file(input, &output_path, &options) {
                 Ok(result) => {
                     successes += 1;
@@ -423,10 +462,11 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
 
         lines.push(String::new());
         lines.push(format!("Reussies : {successes}"));
+        lines.push(format!("Ignorees (deja presentes) : {skipped}"));
         lines.push(format!("Echecs : {errors}"));
 
         let report = lines.join("\n");
-        let output_available = successes > 0;
+        let output_available = successes > 0 || skipped > 0;
         let level_int = if errors > 0 { 2 } else { 0 };
         let status = format!("Lot termine : {successes} reussie(s), {errors} echec(s).");
         let report_title = "Resultat du lot".to_owned();
