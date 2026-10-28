@@ -58,7 +58,22 @@ if [[ -n "$GUI_BINARY_PATH" ]]; then
     echo "Binaire introuvable ou non executable : $GUI_BINARY_PATH" >&2
     exit 1
   fi
-  TRIMBOX_BIN="$GUI_BINARY_PATH"
+
+  # Installe le binaire demande dans le repertoire utilisateur habituel,
+  # puis integre ce chemin stable au bureau Linux.
+  INSTALL_BIN_DIR="$HOME/.local/bin"
+  INSTALL_BIN="$INSTALL_BIN_DIR/heic-converter-gui"
+  mkdir -p "$INSTALL_BIN_DIR"
+
+  SOURCE_BIN="$GUI_BINARY_PATH"
+  if command -v realpath >/dev/null 2>&1; then
+    SOURCE_BIN="$(realpath "$GUI_BINARY_PATH")"
+  fi
+
+  if [[ "$SOURCE_BIN" != "$INSTALL_BIN" ]]; then
+    install -m 0755 "$GUI_BINARY_PATH" "$INSTALL_BIN"
+  fi
+  TRIMBOX_BIN="$INSTALL_BIN"
 else
   if command -v heic-converter-gui >/dev/null 2>&1; then
     TRIMBOX_BIN="$(command -v heic-converter-gui)"

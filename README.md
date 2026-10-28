@@ -63,7 +63,8 @@ After installing the GUI from a local checkout, run:
 packaging/linux/install-local.sh
 ```
 
-To integrate a specific binary, pass its path explicitly:
+To integrate a specific binary, pass its path explicitly. It is then copied to
+`~/.local/bin/heic-converter-gui` before integration:
 
 ```sh
 packaging/linux/install-local.sh --binary /path/to/heic-converter-gui
