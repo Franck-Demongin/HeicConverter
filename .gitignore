@@ -14,3 +14,6 @@
 # Local-only test data and generated output
 /data/
 /output/
+
+# Local sandbox utilities and experimental files
+/sandbox/
