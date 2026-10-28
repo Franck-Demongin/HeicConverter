@@ -112,6 +112,10 @@ Aucune capture n'est actuellement versionnée. Ajoutez les captures disponibles 
 - Vérifier `page_url` en croisant avec la documentation publiée.
 - Conserver les règles Slint existantes et exécuter les tests après modification.
 
+## Règle de publication
+
+Ne jamais pousser, publier ou mettre à jour le dépôt distant (`git push`, tag distant ou release) sans l'accord explicite de l'utilisateur. Avant tout push, demander confirmation à l'utilisateur et attendre sa réponse.
+
 ## Licence
 
 GPL-3.0-or-later. La licence de Slint open source impose une licence compatible pour une distribution open source. Les licences commerciales de Slint sont nécessaires pour une distribution propriétaire.
