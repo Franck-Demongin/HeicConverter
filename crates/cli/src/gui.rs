@@ -343,11 +343,13 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
         max_pixels: 1 << 28,
     };
 
+    ui.set_batch_progress(0.0);
     ui.set_converting(true);
 
     let ui_weak = ui.as_weak();
     let toaster = toaster.clone();
     let file_count = files.len();
+    let total_files = file_count.max(1);
     let output_dir_text = output_dir.display().to_string();
     std::thread::spawn(move || {
         let mut successes = 0usize;
@@ -389,6 +391,14 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
                     lines.push(format!("ERR {} : {error}", input.display()));
                 }
             }
+
+            let progress = (index + 1) as f32 / total_files as f32;
+            let progress_weak = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = progress_weak.upgrade() {
+                    ui.set_batch_progress(progress);
+                }
+            });
         }
 
         lines.push(String::new());
@@ -414,6 +424,7 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
                     2 => ToastLevel::Error,
                     _ => ToastLevel::Success,
                 };
+                ui.set_batch_progress(1.0);
                 toaster.show(&status, level);
                 ui.set_converting(false);
             }

@@ -1,4 +1,4 @@
-import { VerticalBox, HorizontalBox, Button, ComboBox, LineEdit, ScrollView, StandardButton, Palette, Switch } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, Button, ComboBox, LineEdit, ScrollView, StandardButton, Palette, Switch, ProgressIndicator } from "std-widgets.slint";
 import { Toast, ToastItem, ToastTiming, ToastState, ToastOverlay } from "toast/toast.slint";
 export { ToastTiming, ToastState } from "toast/toast.slint";
 
@@ -44,6 +44,7 @@ export component MainWindow inherits Window {
     in-out property <string> batch-naming: "Conserver le nom d'origine";
     in-out property <string> batch-base-name: "image";
 
+    in-out property <float> batch-progress: 0.0;
     in-out property <bool> converting: false;
 
     callback browse-source();
@@ -306,6 +307,13 @@ export component MainWindow inherits Window {
                     }
                 }
             }
+        }
+
+        if root.converting : ProgressIndicator {
+            horizontal-stretch: 1;
+            height: 6px;
+            indeterminate: !root.batch-mode;
+            progress: root.batch-progress;
         }
 
         Rectangle {
