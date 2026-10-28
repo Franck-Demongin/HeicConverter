@@ -3,8 +3,7 @@
 use queue::{TOAST_LIFETIME, ToastNotice, ToastQueue};
 use slint::ComponentHandle;
 use slint::{Model, ModelRc, VecModel};
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::{MainWindow, ToastItem, ToastState, ToastTiming};
@@ -30,13 +29,13 @@ impl ToastLevel {
 
 #[derive(Clone)]
 pub struct Toaster {
-    state: Rc<RefCell<ToastQueue>>,
+    state: Arc<Mutex<ToastQueue>>,
     ui: slint::Weak<MainWindow>,
 }
 
 impl Toaster {
     pub fn install(ui: &MainWindow) -> Self {
-        let state = Rc::new(RefCell::new(ToastQueue::default()));
+        let state = Arc::new(Mutex::new(ToastQueue::default()));
         let callback_state = state.clone();
         let callback_weak = ui.as_weak();
 
@@ -67,12 +66,12 @@ fn exit_duration(ui: &MainWindow) -> Duration {
     Duration::from_millis(ui.global::<ToastTiming>().get_exit() as u64)
 }
 
-fn schedule_removal(ui: &MainWindow, state: Rc<RefCell<ToastQueue>>, id: u32) {
+fn schedule_removal(ui: &MainWindow, state: Arc<Mutex<ToastQueue>>, id: u32) {
     let duration = exit_duration(ui);
     let weak = ui.as_weak();
     slint::Timer::single_shot(duration, move || {
         if let Some(ui) = weak.upgrade() {
-            let removed = state.borrow_mut().finalize_toast_removal(id);
+            let removed = state.lock().unwrap().finalize_toast_removal(id);
             if removed {
                 sync_toast_stack(&ui, &state);
             }
@@ -80,13 +79,13 @@ fn schedule_removal(ui: &MainWindow, state: Rc<RefCell<ToastQueue>>, id: u32) {
     });
 }
 
-fn enqueue_toast(ui: &MainWindow, state: &Rc<RefCell<ToastQueue>>, text: String, level: i32) {
+fn enqueue_toast(ui: &MainWindow, state: &Arc<Mutex<ToastQueue>>, text: String, level: i32) {
     let notice = ToastNotice {
         text,
         level,
         closing: false,
     };
-    let (id, evicted_id) = state.borrow_mut().push_toast(notice);
+    let (id, evicted_id) = state.lock().unwrap().push_toast(notice);
 
     sync_toast_stack(ui, state);
 
@@ -97,9 +96,9 @@ fn enqueue_toast(ui: &MainWindow, state: &Rc<RefCell<ToastQueue>>, text: String,
     }
 }
 
-fn sync_toast_stack(ui: &MainWindow, state: &Rc<RefCell<ToastQueue>>) {
+fn sync_toast_stack(ui: &MainWindow, state: &Arc<Mutex<ToastQueue>>) {
     let wanted: Vec<ToastItem> = {
-        let queue = state.borrow();
+        let queue = state.lock().unwrap();
         queue
             .stack
             .iter()
@@ -145,9 +144,9 @@ fn sync_toast_stack(ui: &MainWindow, state: &Rc<RefCell<ToastQueue>>) {
     }
 }
 
-fn dismiss_toast(ui: &MainWindow, state: &Rc<RefCell<ToastQueue>>, toast_id: i32) {
+fn dismiss_toast(ui: &MainWindow, state: &Arc<Mutex<ToastQueue>>, toast_id: i32) {
     let id = toast_id as u32;
-    let started = state.borrow_mut().begin_toast_closing(id);
+    let started = state.lock().unwrap().begin_toast_closing(id);
     if !started {
         return;
     }
@@ -157,10 +156,15 @@ fn dismiss_toast(ui: &MainWindow, state: &Rc<RefCell<ToastQueue>>, toast_id: i32
     schedule_removal(ui, state.clone(), id);
 }
 
-fn schedule_auto_dismiss(ui: slint::Weak<MainWindow>, state: Rc<RefCell<ToastQueue>>, id: u32) {
+fn schedule_auto_dismiss(ui: slint::Weak<MainWindow>, state: Arc<Mutex<ToastQueue>>, id: u32) {
     slint::Timer::single_shot(TOAST_LIFETIME, move || {
         if let Some(ui) = ui.upgrade() {
-            let still_present = state.borrow().stack.iter().any(|toast| toast.id == id);
+            let still_present = state
+                .lock()
+                .unwrap()
+                .stack
+                .iter()
+                .any(|toast| toast.id == id);
             if !still_present {
                 return;
             }

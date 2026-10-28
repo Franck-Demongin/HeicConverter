@@ -113,9 +113,15 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
+struct SingleOutcome {
+    success: bool,
+    output_path: String,
+    report: String,
+    status: String,
+}
+
 fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
-    let mode = ui.get_processing_mode().as_str().trim().to_owned();
-    if mode.eq_ignore_ascii_case("Dossier") {
+    if ui.get_batch_mode() {
         convert_batch_gui(ui, toaster);
         return;
     }
@@ -170,21 +176,23 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
         return;
     }
 
-    let options = ConversionOptions {
-        format,
-        apply_transforms: true,
-        max_pixels: 1 << 28,
-    };
+    ui.set_converting(true);
 
-    match convert_file(&input_path, &output, &options) {
-        Ok(result) => {
-            ui.set_output_path(output.display().to_string().into());
-            ui.set_output_available(true);
-            let status = format!("Conversion terminee ({}x{}).", result.width, result.height);
-            set_report(
-                ui,
-                "Resultat",
-                format!(
+    let ui_weak = ui.as_weak();
+    let toaster = toaster.clone();
+    let output_text = output.display().to_string();
+    std::thread::spawn(move || {
+        let options = ConversionOptions {
+            format,
+            apply_transforms: true,
+            max_pixels: 1 << 28,
+        };
+
+        let outcome = match convert_file(&input_path, &output, &options) {
+            Ok(result) => SingleOutcome {
+                success: true,
+                output_path: output.display().to_string(),
+                report: format!(
                     "HEIC Converter - resultat\nFichier source : {}\nFichier genere : {}\nDimensions : {} x {}\nTaille : {} octets\nAlpha : {}\n16 bits : {}",
                     result.input.display(),
                     result.output.display(),
@@ -194,15 +202,32 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
                     result.has_alpha,
                     result.sixteen_bit
                 ),
-                status,
-                0,
-                toaster,
-            );
-        }
-        Err(error) => {
-            set_status(ui, toaster, format!("Conversion impossible : {error}"), 2);
-        }
-    }
+                status: format!("Conversion terminee ({}x{}).", result.width, result.height),
+            },
+            Err(error) => SingleOutcome {
+                success: false,
+                output_path: output_text.clone(),
+                report: String::new(),
+                status: format!("Conversion impossible : {error}"),
+            },
+        };
+
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                if outcome.success {
+                    ui.set_output_path(outcome.output_path.into());
+                    ui.set_output_available(true);
+                    ui.set_report_title("Resultat".into());
+                    ui.set_report(outcome.report.into());
+                    ui.set_report_available(true);
+                    toaster.show(&outcome.status, ToastLevel::Success);
+                } else {
+                    toaster.show(&outcome.status, ToastLevel::Error);
+                }
+                ui.set_converting(false);
+            }
+        });
+    });
 }
 
 fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
@@ -318,62 +343,82 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
         max_pixels: 1 << 28,
     };
 
-    let mut successes = 0usize;
-    let mut errors = 0usize;
-    let mut lines = vec![
-        "HEIC Converter - traitement par lot".to_owned(),
-        format!("Dossier source : {}", source_dir.display()),
-        format!("Dossier de sortie : {}", output_dir.display()),
-        format!("Fichiers trouves : {}", files.len()),
-        String::new(),
-    ];
+    ui.set_converting(true);
 
-    for (index, input) in files.iter().enumerate() {
-        let output_name = if generic {
-            format!("{}_{:03}.{}", base_name, index + 1, extension)
-        } else {
-            let stem = input
-                .file_stem()
-                .and_then(|value| value.to_str())
-                .filter(|value| !value.is_empty())
-                .unwrap_or("sortie");
-            format!("{}.{}", stem, extension)
-        };
-        let output_path = output_dir.join(output_name);
+    let ui_weak = ui.as_weak();
+    let toaster = toaster.clone();
+    let file_count = files.len();
+    let output_dir_text = output_dir.display().to_string();
+    std::thread::spawn(move || {
+        let mut successes = 0usize;
+        let mut errors = 0usize;
+        let mut lines = vec![
+            "HEIC Converter - traitement par lot".to_owned(),
+            format!("Dossier source : {}", source_dir.display()),
+            format!("Dossier de sortie : {}", output_dir.display()),
+            format!("Fichiers trouves : {}", file_count),
+            String::new(),
+        ];
 
-        match convert_file(input, &output_path, &options) {
-            Ok(result) => {
-                successes += 1;
-                lines.push(format!(
-                    "OK {} -> {} ({}x{})",
-                    input.display(),
-                    output_path.display(),
-                    result.width,
-                    result.height
-                ));
-            }
-            Err(error) => {
-                errors += 1;
-                lines.push(format!("ERR {} : {error}", input.display()));
+        for (index, input) in files.iter().enumerate() {
+            let output_name = if generic {
+                format!("{}_{:03}.{}", base_name, index + 1, extension)
+            } else {
+                let stem = input
+                    .file_stem()
+                    .and_then(|value| value.to_str())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or("sortie");
+                format!("{}.{}", stem, extension)
+            };
+            let output_path = output_dir.join(output_name);
+
+            match convert_file(input, &output_path, &options) {
+                Ok(result) => {
+                    successes += 1;
+                    lines.push(format!(
+                        "OK {} -> {} ({}x{})",
+                        input.display(),
+                        output_path.display(),
+                        result.width,
+                        result.height
+                    ));
+                }
+                Err(error) => {
+                    errors += 1;
+                    lines.push(format!("ERR {} : {error}", input.display()));
+                }
             }
         }
-    }
 
-    lines.push(String::new());
-    lines.push(format!("Reussies : {successes}"));
-    lines.push(format!("Echecs : {errors}"));
+        lines.push(String::new());
+        lines.push(format!("Reussies : {successes}"));
+        lines.push(format!("Echecs : {errors}"));
 
-    ui.set_output_path(output_dir.display().to_string().into());
-    if successes > 0 {
-        ui.set_output_available(true);
-    }
-    ui.set_report_title("Resultat du lot".into());
-    ui.set_report(lines.join("\n").into());
-    ui.set_report_available(true);
+        let report = lines.join("\n");
+        let output_available = successes > 0;
+        let level_int = if errors > 0 { 2 } else { 0 };
+        let status = format!("Lot termine : {successes} reussie(s), {errors} echec(s).");
+        let report_title = "Resultat du lot".to_owned();
 
-    let level = if errors > 0 { 2 } else { 0 };
-    let status = format!("Lot termine : {successes} reussie(s), {errors} echec(s).");
-    set_status(ui, toaster, status, level);
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_output_path(output_dir_text.into());
+                if output_available {
+                    ui.set_output_available(true);
+                }
+                ui.set_report_title(report_title.into());
+                ui.set_report(report.into());
+                ui.set_report_available(true);
+                let level = match level_int {
+                    2 => ToastLevel::Error,
+                    _ => ToastLevel::Success,
+                };
+                toaster.show(&status, level);
+                ui.set_converting(false);
+            }
+        });
+    });
 }
 
 fn is_heic_file(path: &Path) -> bool {
@@ -384,20 +429,6 @@ fn is_heic_file(path: &Path) -> bool {
             ext == "heic" || ext == "heif"
         })
         .unwrap_or(false)
-}
-
-fn set_report(
-    ui: &MainWindow,
-    title: impl Into<slint::SharedString>,
-    report: String,
-    status: impl Into<slint::SharedString>,
-    level: i32,
-    toaster: &Toaster,
-) {
-    ui.set_report_title(title.into());
-    ui.set_report(report.into());
-    ui.set_report_available(true);
-    set_status(ui, toaster, status, level);
 }
 
 fn set_status(
