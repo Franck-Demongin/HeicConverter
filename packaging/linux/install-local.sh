@@ -14,17 +14,68 @@ if [ ! -d "$ASSETS_DIR" ]; then
   exit 1
 fi
 
-if command -v heic-converter-gui >/dev/null 2>&1; then
-  TRIMBOX_BIN="$(command -v heic-converter-gui)"
+GUI_BINARY_PATH=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --binary)
+      if [[ $# -lt 2 ]]; then
+        echo "Option --binary sans chemin." >&2
+        exit 1
+      fi
+      GUI_BINARY_PATH="$2"
+      shift 2
+      ;;
+    --binary=*)
+      GUI_BINARY_PATH="${1#*=}"
+      shift
+      ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: install-local.sh [--binary CHEMIN]
+
+Sans option, le script recherche heic-converter-gui dans le PATH,
+puis dans ~/.cargo/bin.
+
+Options :
+  --binary CHEMIN   Chemin explicite vers le binaire heic-converter-gui.
+  -h, --help       Affiche cette aide.
+EOF
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "Option inconnue : $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -n "$GUI_BINARY_PATH" ]]; then
+  if [[ ! -x "$GUI_BINARY_PATH" ]]; then
+    echo "Binaire introuvable ou non executable : $GUI_BINARY_PATH" >&2
+    exit 1
+  fi
+  TRIMBOX_BIN="$GUI_BINARY_PATH"
 else
-  if [ -x "$HOME/.cargo/bin/heic-converter-gui" ]; then
+  if command -v heic-converter-gui >/dev/null 2>&1; then
+    TRIMBOX_BIN="$(command -v heic-converter-gui)"
+  elif [[ -x "$HOME/.cargo/bin/heic-converter-gui" ]]; then
     TRIMBOX_BIN="$HOME/.cargo/bin/heic-converter-gui"
     mkdir -p "$HOME/.local/bin"
     ln -sfn "$TRIMBOX_BIN" "$HOME/.local/bin/heic-converter-gui"
   else
-    echo "Binaire heic-converter-gui introuvable. Installez-le d'abord avec cargo install --features gui." >&2
+    echo "Binaire heic-converter-gui introuvable. Installez-le d'abord avec cargo install --features gui ou utilisez --binary." >&2
     exit 1
   fi
+fi
+
+if [[ "$TRIMBOX_BIN" != /* ]] && command -v realpath >/dev/null 2>&1; then
+  TRIMBOX_BIN="$(realpath "$TRIMBOX_BIN")"
+elif [[ "$TRIMBOX_BIN" != /* ]]; then
+  TRIMBOX_BIN="$PWD/$TRIMBOX_BIN"
 fi
 
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"

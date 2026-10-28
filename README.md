@@ -63,6 +63,12 @@ After installing the GUI from a local checkout, run:
 packaging/linux/install-local.sh
 ```
 
+To integrate a specific binary, pass its path explicitly:
+
+```sh
+packaging/linux/install-local.sh --binary /path/to/heic-converter-gui
+```
+
 This installs the icon set, a desktop entry, and integrates HEIC Converter into the Linux desktop environment.
 
 ## Command-line usage
