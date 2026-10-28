@@ -1,37 +1,50 @@
 # HEIC Converter
 
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-HEIC Converter est un outil Rust de ligne de commande avec une interface Slint optionnelle. Il convertit des images HEIC/HEIF en JPEG ou PNG et conserve la orientation contenue dans le fichier HEIC.
+HEIC Converter converts HEIC/HEIF images to JPEG or PNG. It is written in Rust, keeps its conversion core independent from the interface, and provides an optional Slint graphical interface behind the `gui` feature.
 
-Le noyau métier reste séparé de l'interface : la GUI est activée par la feature `gui`.
+![HEIC Converter graphical interface](assets/screen_gui.png)
 
-## Fonctionnalités
+## Features
 
-- Conversion de fichiers HEIC/HEIF en JPEG ou PNG.
-- Application des transformations contenues (`irot`, `imir`, `clap`).
-- Conservation de la resolution et des dimensions source.
-- Traitement par lots via la ligne de commande.
-- Extraction simple d'un rapport de conversion dans l'interface graphique.
-- toasts et interface Slint fondes sur la palette systeme.
+- Convert HEIC/HEIF files to JPEG or PNG.
+- Apply orientation and transformation metadata contained in the source file.
+- Preserve source dimensions and pixel resolution.
+- Convert one file in the graphical interface or process a folder in batch mode.
+- Update output file extensions to match the selected JPEG/PNG format.
+- Preserve or replace existing output files.
+- Show progress feedback, including an indeterminate spinner for single files and a per-file progress bar for batches.
+- Open generated files, output folders, and conversion reports.
+- Command-line conversion for files and directories, including recursive directory collection.
+- Typed error reporting for invalid HEIC input, I/O errors, and excessive image dimensions.
+
+## Artifacts
+
+| Platform | Command-line | Graphical |
+|---|---|---|
+| Linux | `heic-converter` | `heic-converter-gui` |
+| Windows | `heic-converter.exe` | `heic-converter-gui.exe` |
 
 ## Installation
 
-### Depuis GitHub
+### From GitHub
 
 ```sh
 cargo install --locked --git https://github.com/Franck-Demongin/heic-converter.git --branch main --features gui
 ```
 
-Cette commande installe `heic-converter` et `heic-converter-gui` sur Linux, `heic-converter.exe` et `heic-converter-gui.exe` sur Windows. Sur certaines machines, `~/.cargo/bin` n'est pas dans `PATH`.
+This builds and installs both `heic-converter` and `heic-converter-gui`. Without `--features gui`, only the command-line binary is installed. On some systems, `~/.cargo/bin` is not on `PATH`; add it to `PATH` or symlink the binaries into `~/.local/bin`.
 
-### Depuis une copie locale
+### From a local checkout
 
 ```sh
 cargo install --path crates/cli --features gui
 ```
 
-### Dépendances de compilation sur Linux
+### Linux build dependencies
+
+The graphical interface needs these development packages on Debian or Ubuntu:
 
 ```sh
 sudo apt-get update
@@ -40,22 +53,65 @@ sudo apt-get install -y build-essential pkg-config \
   libxkbcommon-dev libwayland-dev libgl-dev
 ```
 
-### Intégration Linux (bureau et icône)
+These packages are compile-time dependencies. The installed Linux binaries only link standard runtime libraries.
 
-Depuis une copie du dépôt :
+### Linux desktop integration
+
+After installing the GUI from a local checkout, run:
 
 ```sh
 packaging/linux/install-local.sh
 ```
 
-## Utilisation CLI
+This installs the icon set, a desktop entry, and integrates HEIC Converter into the Linux desktop environment.
+
+## Command-line usage
 
 ```sh
-heic-converter convert input.heic --output ./sortie --format jpeg --quality 90
-heic-converter convert ./images --output ./sortie --format png
+heic-converter convert INPUT... --output DIR [OPTIONS]
 ```
 
-## Compilation
+Options:
+
+| Option | Description |
+|---|---|
+| `--output DIR` | Output directory |
+| `--format jpeg,png` | Output format, default: `jpeg` |
+| `--quality N` | JPEG quality from 1 to 100, default: 90 |
+| `--no-overwrite` | Keep existing output files instead of replacing them |
+
+Examples:
+
+```sh
+heic-converter convert photo.heic --output ./output
+heic-converter convert ./photos --output ./output --format png
+heic-converter convert a.heic b.heic --output ./output --quality 95 --no-overwrite
+```
+
+`INPUT` may be one or more files or directories. Directories are scanned recursively for HEIC/HEIF files. Existing output files are replaced unless `--no-overwrite` is used.
+
+## Graphical usage
+
+Start the graphical interface:
+
+```sh
+heic-converter-gui
+```
+
+During development:
+
+```sh
+cargo run -p heic-converter-cli --features gui --bin heic-converter-gui
+```
+
+The interface provides two modes:
+
+- **Unique**: convert one HEIC/HEIF file to JPEG or PNG.
+- **Lot**: convert every HEIC/HEIF file found directly in a selected source folder.
+
+Available actions include selecting source and output paths, choosing JPEG or PNG, setting JPEG quality, choosing existing-file behavior, monitoring conversion progress, and opening generated files, output folders, or reports.
+
+## Build from source
 
 ```sh
 cargo build -p heic-converter-cli
@@ -63,14 +119,27 @@ cargo build -p heic-converter-cli --features gui --bin heic-converter-gui
 cargo build --workspace --all-features
 ```
 
-## Vérification
+## Verification
 
 ```sh
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo check -p heic-converter-cli
+cargo check -p heic-converter-cli --features gui
 ```
 
-## Licence
+## Project structure
 
-GPL-3.0-or-later. La licence de Slint open source impose une licence compatible pour une distribution open source. Les licences commerciales de Slint sont nécessaires pour une distribution propriétaire.
+```text
+crates/core      # Conversion logic and typed errors
+crates/cli       # Command-line entry point and GUI
+packaging/linux  # Linux desktop integration
+assets/icons     # Application icons
+```
+
+## License
+
+HEIC Converter is licensed under `GPL-3.0-or-later`.
+
+The open-source Slint license requires a compatible open-source license. Commercial Slint licenses are required for proprietary distribution.
