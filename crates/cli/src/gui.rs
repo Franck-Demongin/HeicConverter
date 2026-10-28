@@ -499,10 +499,13 @@ fn open_output_folder_gui(ui: &MainWindow, toaster: &Toaster) {
         return;
     }
     let path = PathBuf::from(path);
-    let target = path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("."));
+    let target = if path.is_dir() {
+        path
+    } else {
+        path.parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("."))
+    };
     if let Err(error) = open_system_path(&target) {
         set_status(ui, toaster, format!("Ouverture impossible : {error}"), 2);
     }
