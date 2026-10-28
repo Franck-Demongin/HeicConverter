@@ -45,6 +45,7 @@ export component MainWindow inherits Window {
     in-out property <string> batch-base-name: "image";
 
     in-out property <float> batch-progress: 0.0;
+    in-out property <string> progress-label: "";
     in-out property <bool> converting: false;
 
     callback browse-source();
@@ -309,11 +310,22 @@ export component MainWindow inherits Window {
             }
         }
 
-        if root.converting : ProgressIndicator {
-            horizontal-stretch: 1;
-            height: 6px;
-            indeterminate: !root.batch-mode;
-            progress: root.batch-progress;
+        if root.converting : VerticalBox {
+            spacing: 2px;
+            padding: 0px;
+            Text {
+                text: root.progress-label;
+                font-size: Theme.font-small;
+                color: Palette.foreground;
+                horizontal-alignment: left;
+                wrap: word-wrap;
+            }
+            ProgressIndicator {
+                horizontal-stretch: 1;
+                height: 6px;
+                indeterminate: !root.batch-mode;
+                progress: root.batch-progress;
+            }
         }
 
         Rectangle {

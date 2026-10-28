@@ -176,6 +176,12 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
         return;
     }
 
+    let progress_name = input_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("fichier source")
+        .to_owned();
+    ui.set_progress_label(format!("Fichier {} en cours de traitement", progress_name).into());
     ui.set_converting(true);
 
     let ui_weak = ui.as_weak();
@@ -224,6 +230,7 @@ fn convert_gui(ui: &MainWindow, toaster: &Toaster) {
                 } else {
                     toaster.show(&outcome.status, ToastLevel::Error);
                 }
+                ui.set_progress_label("".into());
                 ui.set_converting(false);
             }
         });
@@ -363,6 +370,19 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
         ];
 
         for (index, input) in files.iter().enumerate() {
+            let input_name = input
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("fichier source")
+                .to_owned();
+            let label_text = format!("Fichier {} - {}/{}", input_name, index + 1, file_count);
+            let label_weak = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = label_weak.upgrade() {
+                    ui.set_progress_label(label_text.into());
+                }
+            });
+
             let output_name = if generic {
                 format!("{}_{:03}.{}", base_name, index + 1, extension)
             } else {
@@ -425,6 +445,7 @@ fn convert_batch_gui(ui: &MainWindow, toaster: &Toaster) {
                     _ => ToastLevel::Success,
                 };
                 ui.set_batch_progress(1.0);
+                ui.set_progress_label("".into());
                 toaster.show(&status, level);
                 ui.set_converting(false);
             }
