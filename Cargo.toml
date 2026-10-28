@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.99"
 license = "GPL-3.0-or-later"
@@ -14,7 +14,7 @@ homepage = "https://github.com/Franck-Demongin/heic-converter"
 readme = "README.md"
 
 [workspace.dependencies]
-heic-converter-core = { path = "crates/core", version = "0.1.0" }
+heic-converter-core = { path = "crates/core", version = "0.1.1" }
 
 heic-rs = { version = "=0.1.4", default-features = false, features = ["std", "parallel"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
