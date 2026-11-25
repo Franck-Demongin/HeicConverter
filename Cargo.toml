@@ -16,7 +16,7 @@ readme = "README.md"
 [workspace.dependencies]
 heic-converter-core = { path = "crates/core", version = "0.1.1" }
 
-heic-rs = { version = "=0.1.4", default-features = false, features = ["std", "parallel"] }
+heic-rs = { version = "=0.1.5", default-features = false, features = ["std", "parallel"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 thiserror = "2.0"
 directories = "6.0"
